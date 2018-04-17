@@ -689,7 +689,7 @@ def list_pypi_addons():
     from ..config import ADDON_PYPI_SEARCH_SPEC
 
     pypi = xmlrpc.client.ServerProxy(
-        "https://pypi.python.org/pypi/",
+        "https://pypi.org/pypi/",
         transport=SafeUrllibTransport()
     )
     addons = pypi.search(ADDON_PYPI_SEARCH_SPEC)
@@ -698,22 +698,20 @@ def list_pypi_addons():
         if not any(a for a in addons if a['name'] == addon):
             addons.append({"name": addon, "version": '0'})
 
-    multicall = xmlrpc.client.MultiCall(pypi)
+    releases = []
     for addon in addons:
         name = addon["name"]
-        multicall.package_releases(name)
+        releases.append(pypi.package_releases(name))
 
-    releases = multicall()
-    multicall = xmlrpc.client.MultiCall(pypi)
+    results = []
     for addon, versions in zip(addons, releases):
         # Workaround for PyPI bug of search not returning the latest versions
         # https://bitbucket.org/pypa/pypi/issues/326/my-package-doesnt-appear-in-the-search
         version_ = max(versions, key=version.LooseVersion)
 
         name = addon["name"]
-        multicall.release_data(name, version_)
+        results.append(pypi.release_data(name, version_))
 
-    results = list(multicall())
     packages = []
 
     for release in results:
