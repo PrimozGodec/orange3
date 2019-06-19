@@ -210,9 +210,12 @@ def lazy_import(importer_name, to_import):
             message = f'module {importer_name!r} has no attribute {name!r}'
             raise AttributeError(message)
         importing = import_mapping[name]
+        print("here0")
         imported = importlib.import_module(importing,
                                            module.__spec__.parent)
+        print("here1")
         setattr(module, name, imported)
+        print("here2")
         return imported
 
     return module, __getattr__
