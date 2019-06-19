@@ -206,6 +206,7 @@ def lazy_import(importer_name, to_import):
         import_mapping[binding] = importing
 
     def __getattr__(name):
+        print(name)
         if name not in import_mapping:
             message = f'module {importer_name!r} has no attribute {name!r}'
             raise AttributeError(message)
