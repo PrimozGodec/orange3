@@ -182,21 +182,21 @@ class SpectralEmbedding(SklProjector):
         self.params = vars()
 
 
-class lazy_openTSNE:
-    """openTSNE uses numba, which is slow to load, so load it lazily."""
-    def __getattr__(self, item):
-        import sys
-        import openTSNE
-        import openTSNE.affinity
-        import openTSNE.initialization
-        if "openTSNE" in sys.modules:
-            # Disable t-SNE user warnings
-            openTSNE.tsne.log.setLevel(logging.ERROR)
-            openTSNE.affinity.log.setLevel(logging.ERROR)
-        return getattr(openTSNE, item)
+# class lazy_openTSNE:
+#     """openTSNE uses numba, which is slow to load, so load it lazily."""
+#     def __getattr__(self, item):
+import sys
+import openTSNE
+import openTSNE.affinity
+import openTSNE.initialization
+# if "openTSNE" in sys.modules:
+#     # Disable t-SNE user warnings
+#     openTSNE.tsne.log.setLevel(logging.ERROR)
+#     openTSNE.affinity.log.setLevel(logging.ERROR)
+# return getattr(openTSNE, item)
 
 
-openTSNE = lazy_openTSNE()
+# openTSNE = lazy_openTSNE()
 
 
 class TSNEModel(Projection):
