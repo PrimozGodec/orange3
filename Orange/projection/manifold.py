@@ -1,3 +1,4 @@
+import importlib
 import logging
 import warnings
 from collections import Iterable
@@ -182,21 +183,44 @@ class SpectralEmbedding(SklProjector):
         self.params = vars()
 
 
-class lazy_openTSNE:
-    """openTSNE uses numba, which is slow to load, so load it lazily."""
-    def __getattr__(self, item):
-        import sys
-        import openTSNE
-        import openTSNE.affinity
-        import openTSNE.initialization
-        # if "openTSNE" in sys.modules:
-        #     # Disable t-SNE user warnings
-        #     openTSNE.tsne.log.setLevel(logging.ERROR)
-        #     openTSNE.affinity.log.setLevel(logging.ERROR)
-        return getattr(openTSNE, item)
+def lazy_import(importer_name, to_import):
+    """Return the importing module and a callable for lazy importing.
+
+    The module named by importer_name represents the module performing the
+    import to help facilitate resolving relative imports.
+
+    to_import is an iterable of the modules to be potentially imported (absolute
+    or relative). The `as` form of importing is also supported,
+    e.g. `pkg.mod as spam`.
+
+    This function returns a tuple of two items. The first is the importer
+    module for easy reference within itself. The second item is a callable to be
+    set to `__getattr__`.
+    """
+    module = importlib.import_module(importer_name)
+    import_mapping = {}
+    for name in to_import:
+        importing, _, binding = name.partition(' as ')
+        if not binding:
+            _, _, binding = importing.rpartition('.')
+        import_mapping[binding] = importing
+
+    def __getattr__(name):
+        if name not in import_mapping:
+            message = f'module {importer_name!r} has no attribute {name!r}'
+            raise AttributeError(message)
+        importing = import_mapping[name]
+        imported = importlib.import_module(importing,
+                                           module.__spec__.parent)
+        setattr(module, name, imported)
+        return imported
+
+    return module, __getattr__
 
 
-openTSNE = lazy_openTSNE()
+mod, __getattr__ = lazy_import(__name__,
+                               {'openTSNE', 'openTSNE.affinity',
+                                'openTSNE.initialization'})
 
 
 class TSNEModel(Projection):
@@ -215,6 +239,7 @@ class TSNEModel(Projection):
     """
     def __init__(self, embedding, table, pre_domain):
         # type: (openTSNE.TSNEEmbedding, Table, Domain) -> None
+
         transformer = TransformDomain(self)
 
         def proj_variable(i):
@@ -237,7 +262,7 @@ class TSNEModel(Projection):
                 "A sparse matrix was passed, but dense data is required. Use "
                 "X.toarray() to convert to a dense numpy array."
             )
-        if isinstance(self.embedding_.affinities, openTSNE.affinity.Multiscale):
+        if isinstance(self.embedding_.affinities, mod.openTSNE.affinity.Multiscale):
             perplexity = kwargs.pop("perplexity", False)
             if perplexity:
                 if not isinstance(self.perplexity, Iterable):
@@ -430,7 +455,7 @@ class TSNE(Projector):
                     "Perplexity should be an instance of `Iterable`, `%s` "
                     "given." % type(self.perplexity).__name__
                 )
-            affinities = openTSNE.affinity.Multiscale(
+            affinities = mod.openTSNE.affinity.Multiscale(
                 X,
                 perplexities=self.perplexity,
                 metric=self.metric,
@@ -444,7 +469,7 @@ class TSNE(Projector):
                     "Perplexity should be an instance of `float`, `%s` "
                     "given." % type(self.perplexity).__name__
                 )
-            affinities = openTSNE.affinity.PerplexityBasedNN(
+            affinities = mod.openTSNE.affinity.PerplexityBasedNN(
                 X,
                 perplexity=self.perplexity,
                 metric=self.metric,
@@ -460,11 +485,11 @@ class TSNE(Projector):
         if isinstance(self.initialization, np.ndarray):
             initialization = self.initialization
         elif self.initialization == "pca":
-            initialization = openTSNE.initialization.pca(
+            initialization = mod.openTSNE.initialization.pca(
                 X, self.n_components, random_state=self.random_state
             )
         elif self.initialization == "random":
-            initialization = openTSNE.initialization.random(
+            initialization = mod.openTSNE.initialization.random(
                 X, self.n_components, random_state=self.random_state
             )
         else:
@@ -478,7 +503,7 @@ class TSNE(Projector):
     def prepare_embedding(self, affinities, initialization):
         """Prepare an embedding object with appropriate parameters, given some
         affinities and initialization."""
-        return openTSNE.TSNEEmbedding(
+        return mod.openTSNE.TSNEEmbedding(
             initialization,
             affinities,
             learning_rate=self.learning_rate,
@@ -539,5 +564,5 @@ class TSNE(Projector):
 
     @staticmethod
     def default_initialization(data, n_components=2, random_state=None):
-        return openTSNE.initialization.pca(
+        return mod.openTSNE.initialization.pca(
             data, n_components, random_state=random_state)
