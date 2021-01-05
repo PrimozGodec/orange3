@@ -1,13 +1,18 @@
+from collections import Callable
+
 import numpy as np
 from sklearn.isotonic import IsotonicRegression
 from sklearn.calibration import _SigmoidCalibration
 
 from Orange.classification import Model, Learner
+from Orange.data import Table
 from Orange.evaluation import TestOnTrainingData
 from Orange.evaluation.performance_curves import Curves
 
 __all__ = ["ThresholdClassifier", "ThresholdLearner",
            "CalibratedLearner", "CalibratedClassifier"]
+
+from Orange.util import dummy_callback
 
 
 class ThresholdClassifier(Model):
@@ -30,6 +35,11 @@ class ThresholdClassifier(Model):
         self.name = f"{base_model.name}, thresh={threshold:.2f}"
         self.base_model = base_model
         self.threshold = threshold
+
+    def data_to_model_domain(
+            self, data: Table, progress_callback: Callable = dummy_callback
+    ) -> Table:
+        return self.base_model.data_to_model_domain(data, progress_callback)
 
     def __call__(self, data, ret=Model.Value):
         probs = self.base_model(data, ret=Model.Probs)
@@ -103,6 +113,11 @@ class CalibratedClassifier(Model):
         self.base_model = base_model
         self.calibrators = calibrators
         self.name = f"{base_model.name}, calibrated"
+
+    def data_to_model_domain(
+            self, data: Table, progress_callback: Callable = dummy_callback
+    ) -> Table:
+        return self.base_model.data_to_model_domain(data, progress_callback)
 
     def __call__(self, data, ret=Model.Value):
         probs = self.base_model(data, Model.Probs)
