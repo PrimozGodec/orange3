@@ -301,7 +301,13 @@ class OWSelectAttributes(widget.OWWidget):
 
         bbox = gui.vBox(self.controlArea, "Additional settings", addToLayout=False)
         gui.checkBox(
-            bbox, self, "select_new_features", "Automatically select additional/new features"
+            widget=bbox,
+            master=self,
+            value="select_new_features",
+            label="Automatically select additional/new features",
+            tooltip="When the widget receives data with additional columns "
+                    "they are added to the selection if <i>Automatically "
+                    "select additional/new features</i> is checked."
         )
         layout.addWidget(bbox, 3, 0, 1, 3)
 
